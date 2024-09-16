@@ -1,0 +1,189 @@
+#Terraform Azure
+trigger: 
+- none
+
+pool:
+  name: 'Azure Pipelines'
+
+variables:
+  - group: global-variables
+  - group: vnet-variables
+  - group: vm_variables
+  - group: acr_variables
+  - group: db_variables
+  - group: appgw_variables
+  - group: aks_variables
+
+stages:
+
+- stage: destroy_aks
+  jobs:
+  - job: destroy_aks_job
+    displayName: 'destroy Azure kubernetes services'
+    steps:
+    - checkout: self
+    - task: TerraformInstaller@1
+      inputs:
+        terraformVersion: 'latest'
+    - task: TerraformTaskV4@4
+      inputs:
+        provider: 'azurerm'
+        command: 'init'
+        workingDirectory: '$(Build.SourcesDirectory)/private-aks'
+        backendServiceArm: 'Visual Studio Enterprise Subscription (e742faf7-99c3-46f9-9939-22d3f0e74d44)'
+        backendAzureRmResourceGroupName: 'backendtf'
+        backendAzureRmStorageAccountName: 'backendtf8983'
+        backendAzureRmContainerName: 'tfstates'
+        backendAzureRmKey: 'aks.tfstate'
+    - task: TerraformTaskV4@4
+      inputs:
+        provider: 'azurerm'
+        command: 'destroy'
+        workingDirectory: '$(Build.SourcesDirectory)/private-aks'
+        commandOptions: '-auto-approve'
+        environmentServiceNameAzureRM: 'Visual Studio Enterprise Subscription (e742faf7-99c3-46f9-9939-22d3f0e74d44)'
+
+- stage: destroy_appgw
+  jobs:
+  - job: destroy_appgw_job
+    displayName: 'destroy Application Gateway'
+    steps:
+    - checkout: self
+    - task: TerraformInstaller@1
+      inputs:
+        terraformVersion: 'latest'
+    - task: TerraformTaskV4@4
+      inputs:
+        provider: 'azurerm'
+        command: 'init'
+        workingDirectory: '$(Build.SourcesDirectory)/application-gateway'
+        backendServiceArm: 'Visual Studio Enterprise Subscription (e742faf7-99c3-46f9-9939-22d3f0e74d44)'
+        backendAzureRmResourceGroupName: 'backendtf'
+        backendAzureRmStorageAccountName: 'backendtf8983'
+        backendAzureRmContainerName: 'tfstates'
+        backendAzureRmKey: 'appgw.tfstate'
+    - task: TerraformTaskV4@4
+      inputs:
+        provider: 'azurerm'
+        command: 'destroy'
+        workingDirectory: '$(Build.SourcesDirectory)/application-gateway'
+        commandOptions: '-auto-approve'
+        environmentServiceNameAzureRM: 'Visual Studio Enterprise Subscription (e742faf7-99c3-46f9-9939-22d3f0e74d44)'
+
+- stage: destroy_db
+  jobs:
+  - job: destroy_db_job
+    displayName: 'destroy Sql Server'
+    steps:
+    - checkout: self
+    - task: TerraformInstaller@1
+      inputs:
+        terraformVersion: 'latest'
+    - task: TerraformTaskV4@4
+      inputs:
+        provider: 'azurerm'
+        command: 'init'
+        workingDirectory: '$(Build.SourcesDirectory)/sql-dbserver'
+        backendServiceArm: 'Visual Studio Enterprise Subscription (e742faf7-99c3-46f9-9939-22d3f0e74d44)'
+        backendAzureRmResourceGroupName: 'backendtf'
+        backendAzureRmStorageAccountName: 'backendtf8983'
+        backendAzureRmContainerName: 'tfstates'
+        backendAzureRmKey: 'db.tfstate'
+    - task: TerraformTaskV4@4
+      inputs:
+        provider: 'azurerm'
+        command: 'destroy'
+        workingDirectory: '$(Build.SourcesDirectory)/sql-dbserver'
+        commandOptions: '-auto-approve'
+        environmentServiceNameAzureRM: 'Visual Studio Enterprise Subscription (e742faf7-99c3-46f9-9939-22d3f0e74d44)'
+
+- stage: destroy_acr
+  jobs:
+  - job: destroy_acr_job
+    displayName: 'destroy Azure Container Registry'
+    steps:
+    - checkout: self
+    - task: TerraformInstaller@1
+      inputs:
+        terraformVersion: 'latest'
+    - task: TerraformTaskV4@4
+      inputs:
+        provider: 'azurerm'
+        command: 'init'
+        workingDirectory: '$(Build.SourcesDirectory)/private-acr'
+        backendServiceArm: 'Visual Studio Enterprise Subscription (e742faf7-99c3-46f9-9939-22d3f0e74d44)'
+        backendAzureRmResourceGroupName: 'backendtf'
+        backendAzureRmStorageAccountName: 'backendtf8983'
+        backendAzureRmContainerName: 'tfstates'
+        backendAzureRmKey: 'acr.tfstate'
+    - task: TerraformTaskV4@4
+      inputs:
+        provider: 'azurerm'
+        command: 'destroy'
+        workingDirectory: '$(Build.SourcesDirectory)/private-acr'
+        commandOptions: '-auto-approve'
+        environmentServiceNameAzureRM: 'Visual Studio Enterprise Subscription (e742faf7-99c3-46f9-9939-22d3f0e74d44)'
+
+- stage: destroy_vm
+  jobs:
+  - job: destroy_vm_job
+    displayName: 'destroy Virtual Machine'
+    steps:
+    - checkout: self
+    - task: TerraformInstaller@1
+      inputs:
+        terraformVersion: 'latest'
+    - task: TerraformTaskV4@4
+      inputs:
+        provider: 'azurerm'
+        command: 'init'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/agent-vm'
+        backendServiceArm: 'Visual Studio Enterprise Subscription (e742faf7-99c3-46f9-9939-22d3f0e74d44)'
+        backendAzureRmResourceGroupName: 'backendtf'
+        backendAzureRmStorageAccountName: 'backendtf8983'
+        backendAzureRmContainerName: 'tfstates'
+        backendAzureRmKey: 'vm.tfstate'
+    - script: |
+        sed -i 's/\r$//' script.sh
+      displayName: 'Fix line endings'
+      workingDirectory: '$(Build.SourcesDirectory)/agent-vm'
+    - task: TerraformTaskV4@4
+      inputs:
+        provider: 'azurerm'
+        command: 'destroy'
+        workingDirectory: '$(Build.SourcesDirectory)/agent-vm'
+        commandOptions: '-auto-approve'
+        environmentServiceNameAzureRM: 'Visual Studio Enterprise Subscription (e742faf7-99c3-46f9-9939-22d3f0e74d44)'
+        
+- stage: destroy_vnet
+  jobs:
+  - job: destroy_vnet
+    displayName: 'destroy Virtual Network'
+    steps:
+    - task: TerraformInstaller@1
+      displayName: tf tool
+      inputs:
+        terraformVersion: 'latest'
+    - task: TerraformTaskV4@4
+      displayName: tf init
+      inputs:
+        provider: 'azurerm'
+        command: 'init'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/virtual-network'
+        backendServiceArm: 'Visual Studio Enterprise Subscription (e742faf7-99c3-46f9-9939-22d3f0e74d44)'
+        backendAzureRmResourceGroupName: 'backendtf'
+        backendAzureRmStorageAccountName: 'backendtf8983'
+        backendAzureRmContainerName: 'tfstates'
+        backendAzureRmKey: 'vnet.tfstate'
+    - task: TerraformTaskV4@4
+      displayName: tf destroy
+      inputs:
+        provider: 'azurerm'
+        command: 'destroy'
+        workingDirectory: '$(Build.SourcesDirectory)/virtual-network'
+        commandOptions: '-auto-approve'
+        environmentServiceNameAzureRM: 'Visual Studio Enterprise Subscription (e742faf7-99c3-46f9-9939-22d3f0e74d44)'
+    
+
+
+
